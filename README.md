@@ -124,14 +124,3 @@ This project is licensed under the [MIT License](LICENSE).
 
 ---
 
-```
-
-Let me know if you want to:
-
-- Add live demo URL
-- Include specific chart examples (e.g., sales, temperature, social media engagement)
-- Include GIF/preview image
-- Convert it into a project landing page
-
-I'm happy to assist!
-```
