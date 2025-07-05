@@ -1,4 +1,42 @@
 
+// Statistical helper functions
+const calculateMean = (values: number[]): number => {
+  return values.reduce((sum, val) => sum + val, 0) / values.length;
+};
+
+const calculateStdDev = (values: number[]): number => {
+  const mean = calculateMean(values);
+  const squaredDiffs = values.map(val => Math.pow(val - mean, 2));
+  return Math.sqrt(calculateMean(squaredDiffs));
+};
+
+const calculateCorrelation = (x: number[], y: number[]): number => {
+  const n = x.length;
+  const sumX = x.reduce((a, b) => a + b, 0);
+  const sumY = y.reduce((a, b) => a + b, 0);
+  const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
+  const sumXX = x.reduce((sum, xi) => sum + xi * xi, 0);
+  const sumYY = y.reduce((sum, yi) => sum + yi * yi, 0);
+  
+  const numerator = n * sumXY - sumX * sumY;
+  const denominator = Math.sqrt((n * sumXX - sumX * sumX) * (n * sumYY - sumY * sumY));
+  
+  return denominator === 0 ? 0 : numerator / denominator;
+};
+
+const calculateQuantiles = (values: number[]): { q1: number; median: number; q3: number; min: number; max: number } => {
+  const sorted = [...values].sort((a, b) => a - b);
+  const n = sorted.length;
+  
+  return {
+    min: sorted[0],
+    q1: sorted[Math.floor(n * 0.25)],
+    median: sorted[Math.floor(n * 0.5)],
+    q3: sorted[Math.floor(n * 0.75)],
+    max: sorted[n - 1]
+  };
+};
+
 export const generateChartData = (
   data: any[],
   chartType: string,
@@ -114,46 +152,84 @@ export const generateChartData = (
         name: xAxis
       }];
 
-    case 'heatmap':
-      if (!yAxis || yData.length === 0) return null;
-      const uniqueX = [...new Set(xData)];
-      const uniqueY = [...new Set(yData)];
-      const heatmapZ = [];
-      
-      for (let i = 0; i < uniqueY.length; i++) {
-        const row = [];
-        for (let j = 0; j < uniqueX.length; j++) {
-          const count = data.filter(d => d[xAxis] === uniqueX[j] && d[yAxis] === uniqueY[i]).length;
-          row.push(count);
-        }
-        heatmapZ.push(row);
-      }
-
+    case 'violin':
+      const violinData = xData.filter(val => typeof val === 'number' && !isNaN(val));
+      if (violinData.length === 0) return null;
       return [{
-        z: heatmapZ,
-        x: uniqueX,
-        y: uniqueY,
-        type: 'heatmap',
-        colorscale: 'Viridis'
+        y: violinData,
+        type: 'violin',
+        box: { visible: true },
+        meanline: { visible: true },
+        name: xAxis,
+        marker: { color: '#8B5CF6' }
       }];
 
-    case 'bubble':
-      if (!yAxis || yData.length === 0) return null;
-      const sizes = yData.map(y => Math.abs(Number(y) || 1));
-      const maxSize = Math.max(...sizes);
+    case 'density':
+      const densityData = xData.filter(val => typeof val === 'number' && !isNaN(val));
+      if (densityData.length === 0) return null;
+      
+      // Create density estimation using histogram approach
+      const sorted = [...densityData].sort((a, b) => a - b);
+      const min = sorted[0];
+      const max = sorted[sorted.length - 1];
+      const bins = 50;
+      const binWidth = (max - min) / bins;
+      
+      const densityX = [];
+      const densityY = [];
+      
+      for (let i = 0; i <= bins; i++) {
+        const x = min + i * binWidth;
+        const count = densityData.filter(val => 
+          val >= x - binWidth/2 && val < x + binWidth/2
+        ).length;
+        densityX.push(x);
+        densityY.push(count / (densityData.length * binWidth));
+      }
       
       return [{
-        x: xData,
-        y: yData,
-        mode: 'markers',
-        marker: {
-          size: sizes.map(s => Math.max(5, (s / maxSize) * 50)),
-          color: sizes,
-          colorscale: 'Viridis',
-          showscale: true,
-          opacity: 0.7
-        },
-        type: 'scatter'
+        x: densityX,
+        y: densityY,
+        type: 'scatter',
+        mode: 'lines',
+        fill: 'tonexty',
+        name: 'Density',
+        line: { color: '#10B981', width: 2 }
+      }];
+
+    case 'correlation':
+      const numericColumns = Object.keys(data[0]).filter(col => 
+        data.every(row => typeof row[col] === 'number' && !isNaN(row[col]))
+      );
+      
+      if (numericColumns.length < 2) return null;
+      
+      const correlationMatrix = [];
+      const labels = numericColumns;
+      
+      for (let i = 0; i < numericColumns.length; i++) {
+        const row = [];
+        for (let j = 0; j < numericColumns.length; j++) {
+          if (i === j) {
+            row.push(1);
+          } else {
+            const xVals = data.map(d => Number(d[numericColumns[i]]));
+            const yVals = data.map(d => Number(d[numericColumns[j]]));
+            row.push(calculateCorrelation(xVals, yVals));
+          }
+        }
+        correlationMatrix.push(row);
+      }
+      
+      return [{
+        z: correlationMatrix,
+        x: labels,
+        y: labels,
+        type: 'heatmap',
+        colorscale: 'RdBu',
+        zmid: 0,
+        texttemplate: '%{z:.2f}',
+        textfont: { color: 'white' }
       }];
 
     case 'regression':
@@ -199,6 +275,109 @@ export const generateChartData = (
           line: { color: '#EF4444', width: 2 }
         }
       ];
+
+    case 'heatmap':
+      if (!yAxis || yData.length === 0) return null;
+      const uniqueX = [...new Set(xData)];
+      const uniqueY = [...new Set(yData)];
+      const heatmapZ = [];
+      
+      for (let i = 0; i < uniqueY.length; i++) {
+        const row = [];
+        for (let j = 0; j < uniqueX.length; j++) {
+          const count = data.filter(d => d[xAxis] === uniqueX[j] && d[yAxis] === uniqueY[i]).length;
+          row.push(count);
+        }
+        heatmapZ.push(row);
+      }
+
+      return [{
+        z: heatmapZ,
+        x: uniqueX,
+        y: uniqueY,
+        type: 'heatmap',
+        colorscale: 'Viridis'
+      }];
+
+    case 'bubble':
+      if (!yAxis || yData.length === 0) return null;
+      const sizes = yData.map(y => Math.abs(Number(y) || 1));
+      const maxSize = Math.max(...sizes);
+      
+      return [{
+        x: xData,
+        y: yData,
+        mode: 'markers',
+        marker: {
+          size: sizes.map(s => Math.max(5, (s / maxSize) * 50)),
+          color: sizes,
+          colorscale: 'Viridis',
+          showscale: true,
+          opacity: 0.7
+        },
+        type: 'scatter'
+      }];
+
+    case 'waterfall':
+      if (!yAxis || yData.length === 0) return null;
+      const waterfallY = [];
+      let cumulative = 0;
+      
+      yData.forEach((value, idx) => {
+        const numValue = Number(value) || 0;
+        if (idx === 0) {
+          waterfallY.push(numValue);
+          cumulative = numValue;
+        } else {
+          cumulative += numValue;
+          waterfallY.push(cumulative);
+        }
+      });
+      
+      return [{
+        x: xData,
+        y: waterfallY,
+        type: 'waterfall',
+        orientation: 'v',
+        measure: yData.map((_, idx) => idx === 0 ? 'absolute' : 'relative'),
+        textposition: 'outside',
+        connector: { line: { color: 'rgb(63, 63, 63)' } }
+      }];
+
+    case 'funnel':
+      if (!yAxis || yData.length === 0) return null;
+      return [{
+        type: 'funnel',
+        y: xData,
+        x: yData.map(y => Number(y) || 0),
+        textinfo: 'value+percent initial'
+      }];
+
+    case 'gauge':
+      if (!yAxis || yData.length === 0) return null;
+      const gaugeValue = Number(yData[0]) || 0;
+      const maxGaugeValue = Math.max(...yData.map(y => Number(y) || 0));
+      
+      return [{
+        domain: { x: [0, 1], y: [0, 1] },
+        value: gaugeValue,
+        title: { text: xAxis },
+        type: 'indicator',
+        mode: 'gauge+number+delta',
+        gauge: {
+          axis: { range: [null, maxGaugeValue] },
+          bar: { color: '#1f77b4' },
+          steps: [
+            { range: [0, maxGaugeValue * 0.5], color: 'lightgray' },
+            { range: [maxGaugeValue * 0.5, maxGaugeValue * 0.8], color: 'gray' }
+          ],
+          threshold: {
+            line: { color: 'red', width: 4 },
+            thickness: 0.75,
+            value: maxGaugeValue * 0.9
+          }
+        }
+      }];
 
     default:
       return null;

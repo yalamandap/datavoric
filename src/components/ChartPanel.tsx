@@ -5,7 +5,7 @@ import { Download, TrendingUp } from 'lucide-react';
 import { ChartControls } from './charts/ChartControls';
 import { ChartDisplay } from './charts/ChartDisplay';
 import { generateChartData } from './charts/chartDataGenerator';
-import { chartTypes, getChartType } from './charts/chartTypes';
+import { getChartType } from './charts/chartTypes';
 
 interface ChartPanelProps {
   data: any[];
@@ -87,13 +87,14 @@ export const ChartPanel = ({ data, fileName }: ChartPanelProps) => {
         fileName={fileName}
         xAxis={xAxis}
         yAxis={yAxis}
+        data={data}
       />
 
-      {/* Analytics Info */}
+      {/* Enhanced Analytics Info */}
       {plotData && (
         <div className="bg-slate-800 rounded-lg p-4">
-          <h3 className="text-lg font-semibold text-white mb-2">Analysis Information</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <h3 className="text-lg font-semibold text-white mb-3">Analysis Information</h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
             <div>
               <span className="text-slate-400">Data Points:</span>
               <span className="text-white ml-2 font-medium">{data.length}</span>
@@ -105,9 +106,15 @@ export const ChartPanel = ({ data, fileName }: ChartPanelProps) => {
               </span>
             </div>
             <div>
+              <span className="text-slate-400">Category:</span>
+              <span className="text-white ml-2 font-medium">
+                {getChartType(chartType)?.category}
+              </span>
+            </div>
+            <div>
               <span className="text-slate-400">Variables:</span>
               <span className="text-white ml-2 font-medium">
-                {[xAxis, yAxis, groupBy].filter(Boolean).join(', ')}
+                {[xAxis, yAxis, groupBy].filter(Boolean).join(', ') || 'None selected'}
               </span>
             </div>
           </div>
