@@ -29,17 +29,11 @@ export const ChartPanel = ({ data, fileName }: ChartPanelProps) => {
     { value: 'box', label: 'Box Plot' },
     { value: 'violin', label: 'Violin Plot' },
     { value: 'heatmap', label: 'Heatmap' },
-    { value: 'bubble', label: 'Bubble Chart' },
-    { value: 'waterfall', label: 'Waterfall Chart' },
-    { value: 'funnel', label: 'Funnel Chart' },
-    { value: 'sunburst', label: 'Sunburst Chart' },
-    { value: 'treemap', label: 'Treemap' },
-    { value: 'polar', label: 'Polar Chart' },
-    { value: 'radar', label: 'Radar Chart' }
+    { value: 'bubble', label: 'Bubble Chart' }
   ];
 
   const generatePlotData = () => {
-    if (!xAxis || (!yAxis && !['histogram', 'pie', 'box', 'violin', 'sunburst', 'treemap'].includes(chartType))) {
+    if (!xAxis) {
       return null;
     }
 
@@ -48,6 +42,7 @@ export const ChartPanel = ({ data, fileName }: ChartPanelProps) => {
 
     switch (chartType) {
       case 'bar':
+        if (!yAxis) return null;
         return [{
           x: xData,
           y: yData,
@@ -56,6 +51,7 @@ export const ChartPanel = ({ data, fileName }: ChartPanelProps) => {
         }];
       
       case 'line':
+        if (!yAxis) return null;
         return [{
           x: xData,
           y: yData,
@@ -65,6 +61,7 @@ export const ChartPanel = ({ data, fileName }: ChartPanelProps) => {
         }];
       
       case 'scatter':
+        if (!yAxis) return null;
         return [{
           x: xData,
           y: yData,
@@ -89,12 +86,13 @@ export const ChartPanel = ({ data, fileName }: ChartPanelProps) => {
         }];
       
       case 'area':
+        if (!yAxis) return null;
         return [{
           x: xData,
           y: yData,
           fill: 'tonexty',
           type: 'scatter',
-          mode: 'none',
+          mode: 'lines',
           fillcolor: 'rgba(59, 130, 246, 0.3)',
           line: { color: '#3B82F6' }
         }];
@@ -123,14 +121,19 @@ export const ChartPanel = ({ data, fileName }: ChartPanelProps) => {
         }];
 
       case 'heatmap':
-        const heatmapZ = [];
+        if (!yAxis) return null;
+        
+        // Create a proper heatmap matrix
         const uniqueX = [...new Set(xData)];
-        const uniqueY = yAxis ? [...new Set(yData)] : [];
+        const uniqueY = [...new Set(yData)];
+        const heatmapZ = [];
         
         for (let i = 0; i < uniqueY.length; i++) {
           const row = [];
           for (let j = 0; j < uniqueX.length; j++) {
-            row.push(Math.random() * 100); // Simple demo data
+            // Count occurrences of each combination
+            const count = data.filter(d => d[xAxis] === uniqueX[j] && d[yAxis] === uniqueY[i]).length;
+            row.push(count);
           }
           heatmapZ.push(row);
         }
@@ -144,76 +147,18 @@ export const ChartPanel = ({ data, fileName }: ChartPanelProps) => {
         }];
 
       case 'bubble':
+        if (!yAxis) return null;
         return [{
           x: xData,
           y: yData,
           mode: 'markers',
           marker: {
-            size: yData.map(y => Math.abs(y) / 10 + 10),
+            size: yData.map(y => Math.abs(Number(y) || 0) / Math.max(...yData.map(v => Math.abs(Number(v) || 0))) * 50 + 10),
             color: yData,
             colorscale: 'Viridis',
             showscale: true
           },
           type: 'scatter'
-        }];
-
-      case 'waterfall':
-        return [{
-          x: xData,
-          y: yData,
-          type: 'waterfall',
-          orientation: 'v',
-          connector: { line: { color: 'rgb(63, 63, 63)' } }
-        }];
-
-      case 'funnel':
-        return [{
-          y: xData,
-          x: yData,
-          type: 'funnel',
-          marker: { color: '#F59E0B' }
-        }];
-
-      case 'sunburst':
-        const sunburstLabels = [...new Set(xData)];
-        const sunburstParents = new Array(sunburstLabels.length).fill('');
-        const sunburstValues = sunburstLabels.map(() => Math.random() * 100);
-
-        return [{
-          labels: sunburstLabels,
-          parents: sunburstParents,
-          values: sunburstValues,
-          type: 'sunburst'
-        }];
-
-      case 'treemap':
-        const treemapLabels = [...new Set(xData)];
-        const treemapParents = new Array(treemapLabels.length).fill('');
-        const treemapValues = treemapLabels.map(() => Math.random() * 100);
-
-        return [{
-          labels: treemapLabels,
-          parents: treemapParents,
-          values: treemapValues,
-          type: 'treemap'
-        }];
-
-      case 'polar':
-        return [{
-          r: yData,
-          theta: xData,
-          type: 'scatterpolar',
-          mode: 'markers',
-          marker: { color: '#8B5CF6', size: 8 }
-        }];
-
-      case 'radar':
-        return [{
-          r: yData,
-          theta: xData,
-          fill: 'toself',
-          type: 'scatterpolar',
-          name: 'Data'
         }];
       
       default:
@@ -235,7 +180,7 @@ export const ChartPanel = ({ data, fileName }: ChartPanelProps) => {
     }
   };
 
-  const requiresYAxis = !['histogram', 'pie', 'box', 'violin', 'sunburst', 'treemap'].includes(chartType);
+  const requiresYAxis = !['histogram', 'pie', 'box', 'violin'].includes(chartType);
 
   return (
     <motion.div
@@ -346,14 +291,23 @@ export const ChartPanel = ({ data, fileName }: ChartPanelProps) => {
                 title: yAxis,
                 gridcolor: '#475569',
                 color: '#F8FAFC'
-              } : undefined
+              } : undefined,
+              autosize: true
             }}
             style={{ width: '100%', height: '500px' }}
             config={{
               displayModeBar: true,
               displaylogo: false,
-              modeBarButtonsToRemove: ['pan2d', 'lasso2d']
+              modeBarButtonsToRemove: ['pan2d', 'lasso2d'],
+              toImageButtonOptions: {
+                format: 'png',
+                filename: `${fileName}_chart`,
+                height: 800,
+                width: 1200,
+                scale: 1
+              }
             }}
+            useResizeHandler={true}
           />
         ) : (
           <div className="text-center py-12">
