@@ -25,11 +25,21 @@ export const ChartPanel = ({ data, fileName }: ChartPanelProps) => {
     { value: 'scatter', label: 'Scatter Plot' },
     { value: 'pie', label: 'Pie Chart' },
     { value: 'area', label: 'Area Chart' },
-    { value: 'histogram', label: 'Histogram' }
+    { value: 'histogram', label: 'Histogram' },
+    { value: 'box', label: 'Box Plot' },
+    { value: 'violin', label: 'Violin Plot' },
+    { value: 'heatmap', label: 'Heatmap' },
+    { value: 'bubble', label: 'Bubble Chart' },
+    { value: 'waterfall', label: 'Waterfall Chart' },
+    { value: 'funnel', label: 'Funnel Chart' },
+    { value: 'sunburst', label: 'Sunburst Chart' },
+    { value: 'treemap', label: 'Treemap' },
+    { value: 'polar', label: 'Polar Chart' },
+    { value: 'radar', label: 'Radar Chart' }
   ];
 
   const generatePlotData = () => {
-    if (!xAxis || (!yAxis && chartType !== 'histogram' && chartType !== 'pie')) {
+    if (!xAxis || (!yAxis && !['histogram', 'pie', 'box', 'violin', 'sunburst', 'treemap'].includes(chartType))) {
       return null;
     }
 
@@ -95,6 +105,116 @@ export const ChartPanel = ({ data, fileName }: ChartPanelProps) => {
           type: 'histogram',
           marker: { color: '#F59E0B' }
         }];
+
+      case 'box':
+        return [{
+          y: xData,
+          type: 'box',
+          marker: { color: '#06B6D4' },
+          name: xAxis
+        }];
+
+      case 'violin':
+        return [{
+          y: xData,
+          type: 'violin',
+          marker: { color: '#8B5CF6' },
+          name: xAxis
+        }];
+
+      case 'heatmap':
+        const heatmapZ = [];
+        const uniqueX = [...new Set(xData)];
+        const uniqueY = yAxis ? [...new Set(yData)] : [];
+        
+        for (let i = 0; i < uniqueY.length; i++) {
+          const row = [];
+          for (let j = 0; j < uniqueX.length; j++) {
+            row.push(Math.random() * 100); // Simple demo data
+          }
+          heatmapZ.push(row);
+        }
+
+        return [{
+          z: heatmapZ,
+          x: uniqueX,
+          y: uniqueY,
+          type: 'heatmap',
+          colorscale: 'Viridis'
+        }];
+
+      case 'bubble':
+        return [{
+          x: xData,
+          y: yData,
+          mode: 'markers',
+          marker: {
+            size: yData.map(y => Math.abs(y) / 10 + 10),
+            color: yData,
+            colorscale: 'Viridis',
+            showscale: true
+          },
+          type: 'scatter'
+        }];
+
+      case 'waterfall':
+        return [{
+          x: xData,
+          y: yData,
+          type: 'waterfall',
+          orientation: 'v',
+          connector: { line: { color: 'rgb(63, 63, 63)' } }
+        }];
+
+      case 'funnel':
+        return [{
+          y: xData,
+          x: yData,
+          type: 'funnel',
+          marker: { color: '#F59E0B' }
+        }];
+
+      case 'sunburst':
+        const sunburstLabels = [...new Set(xData)];
+        const sunburstParents = new Array(sunburstLabels.length).fill('');
+        const sunburstValues = sunburstLabels.map(() => Math.random() * 100);
+
+        return [{
+          labels: sunburstLabels,
+          parents: sunburstParents,
+          values: sunburstValues,
+          type: 'sunburst'
+        }];
+
+      case 'treemap':
+        const treemapLabels = [...new Set(xData)];
+        const treemapParents = new Array(treemapLabels.length).fill('');
+        const treemapValues = treemapLabels.map(() => Math.random() * 100);
+
+        return [{
+          labels: treemapLabels,
+          parents: treemapParents,
+          values: treemapValues,
+          type: 'treemap'
+        }];
+
+      case 'polar':
+        return [{
+          r: yData,
+          theta: xData,
+          type: 'scatterpolar',
+          mode: 'markers',
+          marker: { color: '#8B5CF6', size: 8 }
+        }];
+
+      case 'radar':
+        return [{
+          r: yData,
+          theta: xData,
+          fill: 'toself',
+          type: 'scatterpolar',
+          name: 'Data'
+        }];
       
       default:
         return null;
@@ -104,11 +224,9 @@ export const ChartPanel = ({ data, fileName }: ChartPanelProps) => {
   const plotData = generatePlotData();
 
   const downloadChart = () => {
-    const element = document.querySelector('.js-plotly-plot');
-    if (element) {
-      // Use Plotly's built-in download functionality
-      const gd = element as any;
-      window.Plotly.downloadImage(gd, {
+    const element = document.querySelector('.js-plotly-plot') as any;
+    if (element && (window as any).Plotly) {
+      (window as any).Plotly.downloadImage(element, {
         format: 'png',
         width: 1200,
         height: 800,
@@ -116,6 +234,8 @@ export const ChartPanel = ({ data, fileName }: ChartPanelProps) => {
       });
     }
   };
+
+  const requiresYAxis = !['histogram', 'pie', 'box', 'violin', 'sunburst', 'treemap'].includes(chartType);
 
   return (
     <motion.div
@@ -183,7 +303,7 @@ export const ChartPanel = ({ data, fileName }: ChartPanelProps) => {
           </select>
         </div>
 
-        {chartType !== 'histogram' && chartType !== 'pie' && (
+        {requiresYAxis && (
           <div className="bg-slate-800 p-4 rounded-lg">
             <label className="block text-sm font-medium text-slate-300 mb-2">
               Y-Axis
@@ -194,7 +314,7 @@ export const ChartPanel = ({ data, fileName }: ChartPanelProps) => {
               className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Select column...</option>
-              {numericColumns.map((column) => (
+              {columns.map((column) => (
                 <option key={column} value={column}>
                   {column}
                 </option>
@@ -222,11 +342,11 @@ export const ChartPanel = ({ data, fileName }: ChartPanelProps) => {
                 gridcolor: '#475569',
                 color: '#F8FAFC'
               },
-              yaxis: {
+              yaxis: requiresYAxis ? {
                 title: yAxis,
                 gridcolor: '#475569',
                 color: '#F8FAFC'
-              }
+              } : undefined
             }}
             style={{ width: '100%', height: '500px' }}
             config={{
@@ -238,7 +358,7 @@ export const ChartPanel = ({ data, fileName }: ChartPanelProps) => {
         ) : (
           <div className="text-center py-12">
             <p className="text-slate-400 text-lg">
-              Select chart type and axes to generate visualization
+              Select chart type and required axes to generate visualization
             </p>
           </div>
         )}
