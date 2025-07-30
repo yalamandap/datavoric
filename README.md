@@ -6,7 +6,7 @@ A modern, responsive dashboard application that takes datasets and visualizes th
 ---
 ## 🌐 Live Demo
 
-🔗 [Live Demo (optional)](https://shimmering-gingersnap-1b3dc1.netlify.app/)
+🔗 [Live Demo ](https://shimmering-gingersnap-1b3dc1.netlify.app/)
 
 ---
 
