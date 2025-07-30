@@ -44,11 +44,18 @@ export const generateChartData = (
   yAxis: string = '',
   groupBy: string = ''
 ) => {
-  if (!data || data.length === 0 || !xAxis) return null;
+  console.log('generateChartData called with:', { chartType, xAxis, yAxis, groupBy, dataLength: data?.length });
+  
+  if (!data || data.length === 0 || !xAxis) {
+    console.log('Early return: missing data or xAxis');
+    return null;
+  }
 
   const xData = data.map(row => row[xAxis]).filter(val => val !== null && val !== undefined);
   const yData = yAxis ? data.map(row => row[yAxis]).filter(val => val !== null && val !== undefined) : [];
   const groupData = groupBy ? data.map(row => row[groupBy]) : [];
+  
+  console.log('Processed data:', { xDataLength: xData.length, yDataLength: yData.length, groupDataLength: groupData.length });
 
   switch (chartType) {
     case 'bar':
@@ -123,14 +130,21 @@ export const generateChartData = (
       }];
 
     case 'histogram':
+      console.log('Generating histogram for xData:', xData);
       const numericData = xData.filter(val => typeof val === 'number' && !isNaN(val));
-      if (numericData.length === 0) return null;
-      return [{
+      console.log('Filtered numeric data:', numericData);
+      if (numericData.length === 0) {
+        console.log('No numeric data for histogram');
+        return null;
+      }
+      const histogramResult = [{
         x: numericData,
         type: 'histogram',
         nbinsx: Math.min(20, Math.max(5, Math.floor(numericData.length / 10))),
         marker: { color: '#F59E0B', opacity: 0.7 }
       }];
+      console.log('Histogram result:', histogramResult);
+      return histogramResult;
 
     case 'box':
       const boxData = xData.filter(val => typeof val === 'number' && !isNaN(val));
@@ -165,8 +179,13 @@ export const generateChartData = (
       }];
 
     case 'density':
+      console.log('Generating density plot');
       const densityData = xData.filter(val => typeof val === 'number' && !isNaN(val));
-      if (densityData.length === 0) return null;
+      console.log('Density data:', densityData);
+      if (densityData.length === 0) {
+        console.log('No numeric data for density plot');
+        return null;
+      }
       
       // Create density estimation using histogram approach
       const sorted = [...densityData].sort((a, b) => a - b);
@@ -198,11 +217,16 @@ export const generateChartData = (
       }];
 
     case 'correlation':
-      const numericColumns = Object.keys(data[0]).filter(col => 
+      console.log('Generating correlation matrix');
+      const numericColumns = Object.keys(data[0] || {}).filter(col => 
         data.every(row => typeof row[col] === 'number' && !isNaN(row[col]))
       );
+      console.log('Numeric columns found:', numericColumns);
       
-      if (numericColumns.length < 2) return null;
+      if (numericColumns.length < 2) {
+        console.log('Not enough numeric columns for correlation');
+        return null;
+      }
       
       const correlationMatrix = [];
       const labels = numericColumns;
@@ -380,6 +404,9 @@ export const generateChartData = (
       }];
 
     default:
+      console.log('Unknown chart type:', chartType);
       return null;
   }
 };
+
+console.log('Chart data generator loaded successfully');
