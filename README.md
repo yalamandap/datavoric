@@ -4,6 +4,11 @@
 A modern, responsive dashboard application that takes datasets and visualizes them through interactive and insightful charts. Built with a clean tech stack using **Vite**, **React**, **TypeScript**, **Tailwind CSS**, and **shadcn/ui**.
 
 ---
+## 🌐 Live Demo
+
+🔗 [Live Demo (optional)](https://shimmering-gingersnap-1b3dc1.netlify.app/)
+
+---
 
 ## 🚀 Features
 
@@ -80,12 +85,6 @@ Visit `http://localhost:5173` to see the dashboard.
 * Real-time or live metrics reporting
 * CSV/JSON to Graph visualizer
 * Internal admin panels
-
----
-
-## 🌐 Live Demo
-
-🔗 [Live Demo (optional)](https://shimmering-gingersnap-1b3dc1.netlify.app/)
 
 ---
 
