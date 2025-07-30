@@ -1,8 +1,4 @@
-Great! Here's your **personalized and polished `README.md`** for your Data Visualization Dashboard project, using your details:
 
----
-
-```markdown
 # 📊 Data Visualization Dashboard
 
 A modern, responsive dashboard application that takes datasets and visualizes them through interactive and insightful charts. Built with a clean tech stack using **Vite**, **React**, **TypeScript**, **Tailwind CSS**, and **shadcn/ui**.
@@ -89,7 +85,7 @@ Visit `http://localhost:5173` to see the dashboard.
 
 ## 🌐 Live Demo
 
-🔗 [Live Demo (optional)](https://your-deployment-link.com)
+🔗 [Live Demo (optional)](https://shimmering-gingersnap-1b3dc1.netlify.app/)
 
 ---
 
