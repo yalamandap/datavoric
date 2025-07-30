@@ -37,6 +37,17 @@ const calculateQuantiles = (values: number[]): { q1: number; median: number; q3:
   };
 };
 
+// Improved numeric detection function
+const isNumericValue = (value: any): boolean => {
+  if (value === null || value === undefined || value === '') return false;
+  const num = Number(value);
+  return !isNaN(num) && isFinite(num);
+};
+
+const toNumericArray = (data: any[]): number[] => {
+  return data.filter(isNumericValue).map(val => Number(val));
+};
+
 export const generateChartData = (
   data: any[],
   chartType: string,
@@ -56,6 +67,7 @@ export const generateChartData = (
   const groupData = groupBy ? data.map(row => row[groupBy]) : [];
   
   console.log('Processed data:', { xDataLength: xData.length, yDataLength: yData.length, groupDataLength: groupData.length });
+  console.log('Sample xData:', xData.slice(0, 5));
 
   switch (chartType) {
     case 'bar':
@@ -131,7 +143,7 @@ export const generateChartData = (
 
     case 'histogram':
       console.log('Generating histogram for xData:', xData);
-      const numericData = xData.filter(val => typeof val === 'number' && !isNaN(val));
+      const numericData = toNumericArray(xData);
       console.log('Filtered numeric data:', numericData);
       if (numericData.length === 0) {
         console.log('No numeric data for histogram');
@@ -147,13 +159,16 @@ export const generateChartData = (
       return histogramResult;
 
     case 'box':
-      const boxData = xData.filter(val => typeof val === 'number' && !isNaN(val));
-      if (boxData.length === 0) return null;
+      const boxData = toNumericArray(xData);
+      console.log('Box plot data:', boxData);
+      if (boxData.length === 0) {
+        console.log('No numeric data for box plot');
+        return null;
+      }
       if (groupBy && groupData.length > 0) {
         const groups = [...new Set(groupData)];
         return groups.map((group, idx) => ({
-          y: data.filter(row => row[groupBy] === group).map(row => row[xAxis])
-            .filter(val => typeof val === 'number' && !isNaN(val)),
+          y: toNumericArray(data.filter(row => row[groupBy] === group).map(row => row[xAxis])),
           type: 'box',
           name: String(group),
           marker: { color: `hsl(${idx * 60}, 70%, 50%)` }
@@ -167,8 +182,12 @@ export const generateChartData = (
       }];
 
     case 'violin':
-      const violinData = xData.filter(val => typeof val === 'number' && !isNaN(val));
-      if (violinData.length === 0) return null;
+      const violinData = toNumericArray(xData);
+      console.log('Violin plot data:', violinData);
+      if (violinData.length === 0) {
+        console.log('No numeric data for violin plot');
+        return null;
+      }
       return [{
         y: violinData,
         type: 'violin',
@@ -180,7 +199,7 @@ export const generateChartData = (
 
     case 'density':
       console.log('Generating density plot');
-      const densityData = xData.filter(val => typeof val === 'number' && !isNaN(val));
+      const densityData = toNumericArray(xData);
       console.log('Density data:', densityData);
       if (densityData.length === 0) {
         console.log('No numeric data for density plot');
@@ -193,6 +212,18 @@ export const generateChartData = (
       const max = sorted[sorted.length - 1];
       const bins = 50;
       const binWidth = (max - min) / bins;
+      
+      if (binWidth === 0) {
+        // All values are the same
+        return [{
+          x: [min],
+          y: [densityData.length],
+          type: 'scatter',
+          mode: 'markers',
+          name: 'Density',
+          marker: { color: '#10B981', size: 10 }
+        }];
+      }
       
       const densityX = [];
       const densityY = [];
@@ -218,9 +249,18 @@ export const generateChartData = (
 
     case 'correlation':
       console.log('Generating correlation matrix');
-      const numericColumns = Object.keys(data[0] || {}).filter(col => 
-        data.every(row => typeof row[col] === 'number' && !isNaN(row[col]))
-      );
+      const allColumns = Object.keys(data[0] || {});
+      console.log('All columns:', allColumns);
+      
+      // Improved numeric column detection
+      const numericColumns = allColumns.filter(col => {
+        const columnData = data.map(row => row[col]);
+        const numericCount = columnData.filter(isNumericValue).length;
+        const isNumeric = numericCount > 0 && numericCount >= columnData.length * 0.8; // At least 80% numeric
+        console.log(`Column ${col}: ${numericCount}/${columnData.length} numeric values, isNumeric: ${isNumeric}`);
+        return isNumeric;
+      });
+      
       console.log('Numeric columns found:', numericColumns);
       
       if (numericColumns.length < 2) {
@@ -237,8 +277,8 @@ export const generateChartData = (
           if (i === j) {
             row.push(1);
           } else {
-            const xVals = data.map(d => Number(d[numericColumns[i]]));
-            const yVals = data.map(d => Number(d[numericColumns[j]]));
+            const xVals = toNumericArray(data.map(d => d[numericColumns[i]]));
+            const yVals = toNumericArray(data.map(d => d[numericColumns[j]]));
             row.push(calculateCorrelation(xVals, yVals));
           }
         }
@@ -258,33 +298,31 @@ export const generateChartData = (
 
     case 'regression':
       if (!yAxis || yData.length === 0) return null;
-      const validPoints = data.filter(d => 
-        typeof d[xAxis] === 'number' && !isNaN(d[xAxis]) &&
-        typeof d[yAxis] === 'number' && !isNaN(d[yAxis])
-      );
+      const validXData = toNumericArray(data.map(d => d[xAxis]));
+      const validYData = toNumericArray(data.map(d => d[yAxis]));
       
-      if (validPoints.length < 2) return null;
-      
-      const xVals = validPoints.map(d => Number(d[xAxis]));
-      const yVals = validPoints.map(d => Number(d[yAxis]));
+      if (validXData.length === 0 || validYData.length === 0 || validXData.length !== validYData.length) {
+        console.log('Invalid data for regression');
+        return null;
+      }
       
       // Simple linear regression
-      const n = xVals.length;
-      const sumX = xVals.reduce((a, b) => a + b, 0);
-      const sumY = yVals.reduce((a, b) => a + b, 0);
-      const sumXY = xVals.reduce((sum, x, i) => sum + x * yVals[i], 0);
-      const sumXX = xVals.reduce((sum, x) => sum + x * x, 0);
+      const n = validXData.length;
+      const sumX = validXData.reduce((a, b) => a + b, 0);
+      const sumY = validYData.reduce((a, b) => a + b, 0);
+      const sumXY = validXData.reduce((sum, x, i) => sum + x * validYData[i], 0);
+      const sumXX = validXData.reduce((sum, x) => sum + x * x, 0);
       
       const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
       const intercept = (sumY - slope * sumX) / n;
       
-      const minX = Math.min(...xVals);
-      const maxX = Math.max(...xVals);
+      const minX = Math.min(...validXData);
+      const maxX = Math.max(...validXData);
       
       return [
         {
-          x: xVals,
-          y: yVals,
+          x: validXData,
+          y: validYData,
           mode: 'markers',
           type: 'scatter',
           name: 'Data Points',
@@ -325,12 +363,17 @@ export const generateChartData = (
 
     case 'bubble':
       if (!yAxis || yData.length === 0) return null;
-      const sizes = yData.map(y => Math.abs(Number(y) || 1));
+      const bubbleXData = toNumericArray(xData);
+      const bubbleYData = toNumericArray(yData);
+      
+      if (bubbleXData.length === 0 || bubbleYData.length === 0) return null;
+      
+      const sizes = bubbleYData.map(y => Math.abs(y || 1));
       const maxSize = Math.max(...sizes);
       
       return [{
-        x: xData,
-        y: yData,
+        x: bubbleXData,
+        y: bubbleYData,
         mode: 'markers',
         marker: {
           size: sizes.map(s => Math.max(5, (s / maxSize) * 50)),
@@ -344,43 +387,51 @@ export const generateChartData = (
 
     case 'waterfall':
       if (!yAxis || yData.length === 0) return null;
+      const waterfallYData = toNumericArray(yData);
+      if (waterfallYData.length === 0) return null;
+      
       const waterfallY = [];
       let cumulative = 0;
       
-      yData.forEach((value, idx) => {
-        const numValue = Number(value) || 0;
+      waterfallYData.forEach((value, idx) => {
         if (idx === 0) {
-          waterfallY.push(numValue);
-          cumulative = numValue;
+          waterfallY.push(value);
+          cumulative = value;
         } else {
-          cumulative += numValue;
+          cumulative += value;
           waterfallY.push(cumulative);
         }
       });
       
       return [{
-        x: xData,
+        x: xData.slice(0, waterfallYData.length),
         y: waterfallY,
         type: 'waterfall',
         orientation: 'v',
-        measure: yData.map((_, idx) => idx === 0 ? 'absolute' : 'relative'),
+        measure: waterfallYData.map((_, idx) => idx === 0 ? 'absolute' : 'relative'),
         textposition: 'outside',
         connector: { line: { color: 'rgb(63, 63, 63)' } }
       }];
 
     case 'funnel':
       if (!yAxis || yData.length === 0) return null;
+      const funnelYData = toNumericArray(yData);
+      if (funnelYData.length === 0) return null;
+      
       return [{
         type: 'funnel',
-        y: xData,
-        x: yData.map(y => Number(y) || 0),
+        y: xData.slice(0, funnelYData.length),
+        x: funnelYData,
         textinfo: 'value+percent initial'
       }];
 
     case 'gauge':
       if (!yAxis || yData.length === 0) return null;
-      const gaugeValue = Number(yData[0]) || 0;
-      const maxGaugeValue = Math.max(...yData.map(y => Number(y) || 0));
+      const gaugeYData = toNumericArray(yData);
+      if (gaugeYData.length === 0) return null;
+      
+      const gaugeValue = gaugeYData[0] || 0;
+      const maxGaugeValue = Math.max(...gaugeYData);
       
       return [{
         domain: { x: [0, 1], y: [0, 1] },
